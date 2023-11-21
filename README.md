@@ -6,7 +6,8 @@ Simple pages using the Gumbo Tailwind branding to display that sites are offline
 
 1. `git clone https://github.com/gumbo-misc/not-available.git`
 2. `npm install`
-3. `npm run build`
+3. (for dev) `npm start`
+4. `npm run build`
 
 Done!
 
