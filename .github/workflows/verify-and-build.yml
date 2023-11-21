@@ -1,0 +1,61 @@
+name: Verify and Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+
+  pull_request:
+
+jobs:
+  test-and-build:
+    name: Build application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload application
+        uses: actions/upload-artifact@v3
+        with:
+          name: output
+          path: dist/
+          if-no-files-found: error
+
+      - name: Update application version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # Load version from Git
+          npm version --allow-same-version --no-git-tag-version from-git
+
+          # Set as env
+          export NODE_PKG_VERSION=$( jq -r '.version' package.json )
+          echo "NODE_PKG_VERSION=${NODE_PKG_VERSION}" >> $GITHUB_ENV
+
+      - name: Bundle application
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: dist
+        run: tar -czf ../minisites.tgz ./*
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: Version ${{ env.NODE_PKG_VERSION }}
+          files: minisites.tgz
+          generate_release_notes: true
