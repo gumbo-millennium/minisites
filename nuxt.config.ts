@@ -1,21 +1,21 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  modules: [
-    '@nuxtjs/google-fonts'
-  ],
   css: ['~/assets/css/main.css'],
+  app: {
+    head: {
+      link: [{ rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Poppins:500,700&display=swap' }]
+    }
+  },
   postcss: {
     plugins: {
       tailwindcss: {},
       autoprefixer: {},
     },
   },
-  googleFonts: {
-    display: 'swap',
-    useStylesheet: true,
-    families: {
-      Poppins: [500, 700],
+  nitro: {
+    compressPublicAssets: {
+      brotli: true
     }
   }
 })
