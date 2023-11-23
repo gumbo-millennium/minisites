@@ -13,6 +13,7 @@ export default defineNuxtConfig({
   },
   googleFonts: {
     display: 'swap',
+    useStylesheet: true,
     families: {
       Poppins: [500, 700],
     }
