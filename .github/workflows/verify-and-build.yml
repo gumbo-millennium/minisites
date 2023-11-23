@@ -1,4 +1,4 @@
-name: Verify and Build
+name: Verify, Build and Package
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
       - v*
 
   pull_request:
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   test-and-build:
@@ -25,40 +29,90 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm clean-install
 
       - name: Run linter
         run: npm run lint
 
-      - name: Build application
+      - name: Generate static application
         run: npm run generate
 
       - name: Upload application
         uses: actions/upload-artifact@v3
         with:
-          name: output
+          name: static
           path: .output/public/
           if-no-files-found: error
 
-      - name: Update application version
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          # Load version from Git
-          npm version --allow-same-version --no-git-tag-version from-git
+      - name: Generate SSR application
+        run: npm run build
 
-          # Set as env
-          export NODE_PKG_VERSION=$( jq -r '.version' package.json )
-          echo "NODE_PKG_VERSION=${NODE_PKG_VERSION}" >> $GITHUB_ENV
+      - name: Upload application
+        uses: actions/upload-artifact@v3
+        with:
+          name: ssr
+          path: .output/
+          if-no-files-found: error
+
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    needs:
+      - test-and-build
+
+    steps:
+      - name: Download static application
+        uses: actions/download-artifact@v3
+        with:
+          name: static
+          path: static
 
       - name: Bundle application
-        if: startsWith(github.ref, 'refs/tags/v')
-        working-directory: .output/public
-        run: tar -czf ../../minisites.tgz ./*
+        working-directory: static
+        run: tar -czf ../minisites.tgz ./*
 
-      - name: Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          name: Version ${{ env.NODE_PKG_VERSION }}
           files: minisites.tgz
           generate_release_notes: true
+
+  create-docker-image:
+    name: Create Docker Image
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+
+    needs:
+      - test-and-build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download application
+        uses: actions/download-artifact@v3
+        with:
+          name: ssr
+          path: .output
+
+      - name: Determine version tag
+        id: version
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
