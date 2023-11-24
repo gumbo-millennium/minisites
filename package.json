@@ -13,7 +13,7 @@
     "format": "npm run lint -- --fix"
   },
   "devDependencies": {
-    "@gumbo-millennium/eslint-config": "https://github.com/gumbo-millennium/eslint-config/releases/download/v1.0.1/gumbo-millennium-eslint-config.tgz",
+    "@gumbo-millennium/eslint-config": "^1.1.0",
     "@nuxt/devtools": "^1.0.3",
     "@nuxtjs/eslint-config-typescript": "^12.1.0",
     "nuxt": "^3.8.2",
